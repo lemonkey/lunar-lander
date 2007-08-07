@@ -211,8 +211,8 @@ class Lunar
 				curPlatform._x += this.platformDirection;
 			}			
 
-			// Ship has hit bottom without hitting a platform? (lose)
-			if(this.ship.y > this.ship.yMax)
+			// Ship has hit bottom without hitting a platform or left the top of the screen? (lose)
+			if(this.ship.y > this.ship.yMax || this.ship.y <= 0)
 				this.lose();
 			else
 			{
