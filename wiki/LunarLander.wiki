@@ -1,0 +1,13 @@
+#summary Welcome to the landing page for Lunar Lander (pun intended)!
+
+= Introduction =
+
+I decided to whip up this homage to the arcade classic "Lunar Lander" in about an hour to test out Google Code, etc.
+
+
+= Details =
+
+Flash 8 was used along with ActionScript 2.0.
+
+Sound and scoring to be added soon.
+
