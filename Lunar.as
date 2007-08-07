@@ -1,3 +1,14 @@
+/**
+* Lunar.as
+* 
+* Purpose: Main entry point for Lunar game.
+*
+* Created: 2007.08.04
+* 
+* @author abraginsky@gmail.com
+* @version 0.1
+*/
+
 class Lunar
 {
 	var mc:MovieClip;
@@ -6,7 +17,7 @@ class Lunar
 	
 	var width:Number;
 	var height:Number;
-
+	
 	var starCount:Number = 200;
 	var starScaleMin:Number = 100;
 	var starScaleMax:Number = 100;

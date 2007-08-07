@@ -1,3 +1,14 @@
+/**
+* Ship.as
+* 
+* Purpose: Ship class.
+*
+* Created: 2007.08.04
+* 
+* @author abraginsky@gmail.com
+* @version 0.1
+*/
+
 class Ship
 {
 	var parent_mc:MovieClip;
