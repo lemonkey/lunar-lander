@@ -302,7 +302,12 @@ class Lunar
 		this.lives -= 1;
 
 		if(this.lives > 0)
-			this.mc.bg_mc.interstitial_mc.gotoAndStop("_lose");
+        {
+            if(this.ship.y <= 0)
+                this.mc.bg_mc.interstitial_mc.gotoAndStop("_signalLost");
+            else
+                this.mc.bg_mc.interstitial_mc.gotoAndStop("_lose");
+        }
 		else
 		{
 			this.gameOver = true;
