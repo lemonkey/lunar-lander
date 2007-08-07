@@ -11,3 +11,6 @@ Flash 8 was used along with ActionScript 2.0.
 
 Sound and scoring to be added soon.
 
+= Questions/Comments? =
+
+Feel free to use the source as you see fit.  Just include a note pointing back to here, thanks!  I welcome comments.
