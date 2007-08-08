@@ -11,6 +11,11 @@ Flash 8 was used along with ActionScript 2.0.
 
 Sound and scoring to be added soon.
 
-= Usage =
+= Source Usage =
 
 Feel free to use the source as you see fit.  Just include a note pointing back to here, thanks!  I welcome comments.
+
+= Version History =
+
+* 0.2: Added next level interstitial.
+* 0.1: Started versioning.
