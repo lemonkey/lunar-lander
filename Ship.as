@@ -73,7 +73,7 @@ class Ship
 		
 		this.fuel = this.fuelMax;
 		
-		// Set ship position info
+		// Set ship position info		
 		this.ax = 0;
 		this.ay = 0;
 		this.vx = 0;
@@ -85,7 +85,7 @@ class Ship
 		this.startY = this.y;
 		
 		// Set ship object states
-		this.isVisible = true;
+		//this.isVisible = true;
 		this.isRunning = false;
 		this.engineOn = false;
 		this.leftEngineOn = false;
@@ -162,6 +162,12 @@ class Ship
 		}
 	}
 
+	public function setVisibility(visible:Boolean)
+	{
+		this.isVisible = visible;
+		this.mc._visible = visible;		
+	}
+	
 	public function shutDown(death:Boolean)
 	{
 		/*

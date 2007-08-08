@@ -94,9 +94,9 @@ class Lunar
 	private function restart()
 	{
 		trace("## restart()");		
-		
+				
 		this.gameStarted = true;
-		
+			
 		this.mc.bg_mc.interstitial_mc.gotoAndStop("_off");
 		
 		// Clear platforms
@@ -136,6 +136,8 @@ class Lunar
 			platCount++;
 		}
 		
+		this.mc.platforms_mc._visible = true;
+
 		if(this.gameOver)
 		{
 			this.ship.fuel = 100;
@@ -143,8 +145,9 @@ class Lunar
 			this.gameOver = false;
 		}
 
+		this.ship.setVisibility(true);
 		this.ship.resetShip();
-			
+		
 		// Kill previous enterframe manager
 		clearInterval(this.intervalID);
 		this.intervalID = undefined;
@@ -287,6 +290,7 @@ class Lunar
 		}
 	}
 	
+	// Show win interstitial
 	private function win()
 	{
 		if(this.gameLevel + 1 <= this.maxLevels)
@@ -297,6 +301,7 @@ class Lunar
 		this.stop();		
 	}
 	
+	// Show lose interstitial
 	private function lose()
 	{
 		this.lives -= 1;
@@ -317,6 +322,14 @@ class Lunar
 			
 		this.ship.shutDown(true);
 		this.stop();		
+	}
+	
+	// Show level interstitial
+	private function level()
+	{		
+		this.mc.bg_mc.interstitial_mc.gotoAndStop("_level");	
+		this.mc.platforms_mc._visible = false;
+		this.ship.setVisibility(false);
 	}
 	
 	// Randomly sets star alpha
@@ -413,7 +426,10 @@ class Lunar
 					// restart ('r')
 					case 82:				
 						if(!this.gameStarted || this.gameOver)
-							this.restart();
+						{
+							//this.restart();
+							this.level();
+						}
 						break;
 					// pause 'p'
 					case 80:
