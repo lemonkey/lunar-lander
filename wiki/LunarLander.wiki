@@ -17,5 +17,5 @@ Feel free to use the source as you see fit.  Just include a note pointing back t
 
 = Version History =
 
-* 0.2: Added next level interstitial.
-* 0.1: Started versioning.
+0.2: Added next level interstitial.
+0.1: Started versioning.
