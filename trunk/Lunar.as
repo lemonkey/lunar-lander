@@ -26,28 +26,30 @@ class Lunar
 	var starTwinkleRate:Number = 50;
 	
 	var gravity:Number = .3;//5;
+	var maxLandingV:Number = 3.50; // If ship lands on platform with vy or vx greater than this, count as a crash
 	
 	var heartBeat:Number = 80;
 	var initTime:Number;
-
-	var paused:Boolean = false;
-	
-	var platforms:Array;
 	
 	var maxLives:Number = 3;
 	var lives:Number = maxLives;
 	
 	var gameOver:Boolean = false;
 	var gameStarted:Boolean = false;
+	var paused:Boolean = false;
+
+	var platforms:Array;
+	var platformDirection:Number = 1;
+	var totalPlatforms:Number = 3;
 	
 	var maxLevels:Number = 4;
 	var gameLevel:Number = 1; // Each time a game is won, increment gameLevel and update platforms
 	var levels:Array = [["platform1","platform2","platform3"],["platform1","platform2"],["platform1","platform2"],["platform3"]];
-	var totalPlatforms:Number = 3;
-	
-	var maxLandingV:Number = 3.50; // If ship lands on platform with vy or vx greater than this, count as a crash
-	
-	var platformDirection:Number = 1;
+
+	var scoreLevelBonusPt:Number = 100;
+	var scoreFuelBonusPt:Number = 50;
+	var scoreFuelBonusPct:Number = 0.5; // if level cleared with fuel %age greater than this amount, award fuel bonus
+	var totalScore:Number = 0;
 	
 	// Default constructor
 	function Lunar(mc:MovieClip)
@@ -140,8 +142,10 @@ class Lunar
 
 		if(this.gameOver)
 		{
+			// Reset for a new game
+			this.totalScore = 0;
 			this.ship.fuel = 100;
-			this.lives = this.maxLives;
+			this.lives = this.maxLives;			
 			this.gameOver = false;
 		}
 
@@ -171,6 +175,73 @@ class Lunar
 	{
 		if(!this.paused)
 		{
+			// Flash vy and/or vx if they're > maxLandingV and 
+			// flash fuel if < 50% left
+			if(this.ship.vx > this.maxLandingV)
+			{
+				if(_root.vxFlashStart == undefined)
+					_root.vxFlashStart = 1;
+									
+				if(_root.vxFlashStart % 2 == 0)
+				{
+					this.mc.ship_vx_txt.textColor = 0xFF0000;
+				}
+				else
+				{
+					this.mc.ship_vx_txt.textColor = 0xFFFFFF;				
+				}
+				
+				_root.vxFlashStart += 1;
+			}
+			else
+			{
+				_root.vxFlashStart = 1;
+				this.mc.ship_vx_txt.textColor = 0xFFFFFF;	
+			}
+			if(this.ship.vy > this.maxLandingV)
+			{
+				if(_root.vyFlashStart == undefined)
+					_root.vyFlashStart = 1;
+									
+				if(_root.vyFlashStart % 2 == 0)
+				{
+					this.mc.ship_vy_txt.textColor = 0xFF0000;
+				}
+				else
+				{
+					this.mc.ship_vy_txt.textColor = 0xFFFFFF;				
+				}
+				
+				_root.vyFlashStart += 1;
+			}
+			else
+			{
+				_root.vyFlashStart = 1;
+				this.mc.ship_vy_txt.textColor = 0xFFFFFF;	
+			}
+			if(this.ship.fuel/this.ship.fuelMax < 0.5)
+			{
+				if(_root.fuelFlashStart == undefined)
+					_root.fuelFlashStart = 1;
+									
+				if(_root.fuelFlashStart % 2 == 0)
+				{
+					this.mc.ship_fuel_label.textColor = 0xFF0000;
+				}
+				else
+				{
+					this.mc.ship_fuel_label.textColor = 0xFFFFFF;				
+				}
+				
+				_root.fuelFlashStart += 1;
+			}
+			else
+			{
+				_root.fuelFlashStart = 1;
+				this.mc.ship_fuel_label.textColor = 0xFFFFFF;	
+			}
+			
+			
 			// Update ship position based on current velocity
 			this.ship.move();
 									
@@ -293,6 +364,13 @@ class Lunar
 	// Show win interstitial
 	private function win()
 	{
+		// Level win bonus
+		this.totalScore += this.scoreLevelBonusPt;
+		
+		// Check for fuel bonus
+		if(this.ship.fuel/this.ship.fuelMax > this.scoreFuelBonusPct)
+			this.totalScore += this.scoreFuelBonusPt;
+			
 		if(this.gameLevel + 1 <= this.maxLevels)
 			this.gameLevel += 1;
 			
@@ -330,6 +408,12 @@ class Lunar
 		this.mc.bg_mc.interstitial_mc.gotoAndStop("_level");	
 		this.mc.platforms_mc._visible = false;
 		this.ship.setVisibility(false);
+	}
+	
+	// Show current score after winning a level
+	private function showScore()
+	{
+		this.mc.bg_mc.interstitial_mc.gotoAndStop("_score");	
 	}
 	
 	// Randomly sets star alpha
