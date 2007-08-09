@@ -31,6 +31,7 @@ class Lunar
 	
 	var heartBeat:Number = 80;
 	var initTime:Number;
+	var pauseTime:Number;
 	
 	var maxLives:Number = 3;
 	var lives:Number = maxLives;
@@ -185,6 +186,13 @@ class Lunar
 	{
 		if(!this.paused)
 		{
+			// Restore initTime to point after pause time
+			if(this.pauseTime != undefined)
+			{				
+				this.initTime += getTimer() - this.pauseTime;
+				this.pauseTime = undefined;
+			}
+			
 			// Update ship position based on current velocity
 			this.ship.move();
 									
@@ -202,6 +210,12 @@ class Lunar
 
 			// Ship has hit bottom without hitting a platform or left the top of the screen? (lose)
 			this.checkWinLose();	
+		}
+		else
+		{
+			// Save time so time bonus is accurate
+			if(this.pauseTime == undefined)
+				this.pauseTime = getTimer();		
 		}
 		
 		// Twinkle star field on a periodic basis
