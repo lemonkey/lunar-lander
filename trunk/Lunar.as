@@ -23,7 +23,8 @@ class Lunar
 	var starScaleMax:Number = 100;
 	var starAlphaMin:Number = 25;
 	var starAlphaMax:Number = 100;
-	var starTwinkleRate:Number = 50;
+	var starTwinkleRate:Number = 5;//50;
+	var starTwinkleTime:Number= 1;
 	
 	var gravity:Number = .3;//5;
 	var maxLandingV:Number = 3.50; // If ship lands on platform with vy or vx greater than this, count as a crash
@@ -49,7 +50,12 @@ class Lunar
 	var scoreLevelBonusPt:Number = 100;
 	var scoreFuelBonusPt:Number = 50;
 	var scoreFuelBonusPct:Number = 0.5; // if level cleared with fuel %age greater than this amount, award fuel bonus
+	var scoreTimeBonusPt:Number = 25; // if total time to land < 10s, award time bonus
+	var timeBonusTime:Number = 5000; // ms
 	var totalScore:Number = 0;
+	var levelBonus:Boolean = false;
+	var fuelBonus:Boolean = false;
+	var timeBonus:Boolean = false;
 	
 	// Default constructor
 	function Lunar(mc:MovieClip)
@@ -152,6 +158,10 @@ class Lunar
 		this.ship.setVisibility(true);
 		this.ship.resetShip();
 		
+		this.levelBonus = false;
+		this.fuelBonus = false;
+		this.timeBonus = false;
+		
 		// Kill previous enterframe manager
 		clearInterval(this.intervalID);
 		this.intervalID = undefined;
@@ -175,73 +185,6 @@ class Lunar
 	{
 		if(!this.paused)
 		{
-			// Flash vy and/or vx if they're > maxLandingV and 
-			// flash fuel if < 50% left
-			if(this.ship.vx > this.maxLandingV)
-			{
-				if(_root.vxFlashStart == undefined)
-					_root.vxFlashStart = 1;
-									
-				if(_root.vxFlashStart % 2 == 0)
-				{
-					this.mc.ship_vx_txt.textColor = 0xFF0000;
-				}
-				else
-				{
-					this.mc.ship_vx_txt.textColor = 0xFFFFFF;				
-				}
-				
-				_root.vxFlashStart += 1;
-			}
-			else
-			{
-				_root.vxFlashStart = 1;
-				this.mc.ship_vx_txt.textColor = 0xFFFFFF;	
-			}
-			if(this.ship.vy > this.maxLandingV)
-			{
-				if(_root.vyFlashStart == undefined)
-					_root.vyFlashStart = 1;
-									
-				if(_root.vyFlashStart % 2 == 0)
-				{
-					this.mc.ship_vy_txt.textColor = 0xFF0000;
-				}
-				else
-				{
-					this.mc.ship_vy_txt.textColor = 0xFFFFFF;				
-				}
-				
-				_root.vyFlashStart += 1;
-			}
-			else
-			{
-				_root.vyFlashStart = 1;
-				this.mc.ship_vy_txt.textColor = 0xFFFFFF;	
-			}
-			if(this.ship.fuel/this.ship.fuelMax < 0.5)
-			{
-				if(_root.fuelFlashStart == undefined)
-					_root.fuelFlashStart = 1;
-									
-				if(_root.fuelFlashStart % 2 == 0)
-				{
-					this.mc.ship_fuel_label.textColor = 0xFF0000;
-				}
-				else
-				{
-					this.mc.ship_fuel_label.textColor = 0xFFFFFF;				
-				}
-				
-				_root.fuelFlashStart += 1;
-			}
-			else
-			{
-				_root.fuelFlashStart = 1;
-				this.mc.ship_fuel_label.textColor = 0xFFFFFF;	
-			}
-			
-			
 			// Update ship position based on current velocity
 			this.ship.move();
 									
@@ -249,31 +192,94 @@ class Lunar
 			this.ship.vy += this.gravity;
 						
 			// At higher levels, move platforms
-			if(this.gameLevel == 3)
+			this.movePlatforms(this.gameLevel);		
+			
+			// Update instrument displays
+			this.updateDisplays();
+			
+			// Flash vy and/or vx if they're > maxLandingV and flash fuel if < 50% left
+			this.checkForWarnings();
+
+			// Ship has hit bottom without hitting a platform or left the top of the screen? (lose)
+			this.checkWinLose();	
+		}
+		
+		// Twinkle star field on a periodic basis
+		// (Yes I know the atmosphere on the Moon is non-existant, but this is a game remember :p)
+		if(this.starTwinkleTime % this.starTwinkleRate == 0)
+			this.twinkleStars();
+		
+		if(this.starTwinkleTime > 1000)
+			this.starTwinkleTime = 1;
+			
+		this.starTwinkleTime += 1;		
+	}
+	
+	// Check for win/lose state
+	private function checkWinLose()
+	{
+		if(this.ship.y > this.ship.yMax || this.ship.y <= 0)
+			this.lose();
+		else
+		{
+			// Ship landed on a platform? (win)
+			for(var i:Number = 0; i < this.platforms.length; i++)
+			{
+				var curPlatform:MovieClip = eval("this.mc.platforms_mc."+platforms[i]);
+				
+				if(curPlatform.hitTest(this.ship.body_mc))
+				{
+					trace("curPlatform: "+curPlatform);
+					trace("this.ship.mc._y: "+this.ship.mc._y);
+					trace("curPlatform._y: "+curPlatform._y);
+					
+					// Don't allow side hits						
+					trace("## current vy: "+this.ship.vy);
+					
+					//if(this.ship.mc._y <= curPlatform._y + 5 && this.ship.mc._x >= curPlatform._x && this.ship.mc._x + this.ship.mc._width <= curPlatform._x + curPlatform._width)
+					if(this.ship.vy <= this.maxLandingV && Math.abs(this.ship.vx) <= this.maxLandingV && this.ship.mc._x >= curPlatform._x && this.ship.mc._x + this.ship.mc._width <= curPlatform._x + curPlatform._width)
+						this.win();
+					else
+						this.lose();
+						
+					break;
+				}
+			}
+		}		
+	}
+	
+	// Based on current level, move platforms
+	private function movePlatforms(curLevel:Number)
+	{
+		switch(curLevel)
+		{
+			case 3:
 			{
 				var curPlatform1:MovieClip = eval("this.mc.platforms_mc."+platforms[0]);
-				
+
 				if(curPlatform1._x + curPlatform1._width > Stage.width || curPlatform1._x < 0)
 				{
 					this.platformDirection *= -1;
 				}
-				
+
 				curPlatform1._x += this.platformDirection;				
-				
+
 				var curPlatform2:MovieClip = eval("this.mc.platforms_mc."+platforms[1]);	
 
 				this.platformDirection *= -1;
-				
+
 				if(curPlatform2._x + curPlatform2._width > Stage.width || curPlatform2._x < 0)
 				{
 					this.platformDirection *= -1;
 				}
 					
 				curPlatform2._x += this.platformDirection;		
+
+				this.platformDirection *= -1;			
 				
-				this.platformDirection *= -1;
-			}
-			else if(this.gameLevel == 4)
+				break;
+			}			
+			case 4:
 			{
 				var curPlatform:MovieClip = eval("this.mc.platforms_mc."+platforms[0]);
 
@@ -282,83 +288,114 @@ class Lunar
 					this.platformDirection *= -1;
 				}
 					
-				curPlatform._x += this.platformDirection;
-			}			
-
-			// Ship has hit bottom without hitting a platform or left the top of the screen? (lose)
-			if(this.ship.y > this.ship.yMax || this.ship.y <= 0)
-				this.lose();
-			else
-			{
-				// Ship landed on a platform? (win)
-				for(var i:Number = 0; i < this.platforms.length; i++)
-				{
-					var curPlatform:MovieClip = eval("this.mc.platforms_mc."+platforms[i]);
-					
-					if(curPlatform.hitTest(this.ship.body_mc))
-					{
-						trace("curPlatform: "+curPlatform);
-						trace("this.ship.mc._y: "+this.ship.mc._y);
-						trace("curPlatform._y: "+curPlatform._y);
-						
-						// Don't allow side hits						
-						trace("## current vy: "+this.ship.vy);
-						
-						//if(this.ship.mc._y <= curPlatform._y + 5 && this.ship.mc._x >= curPlatform._x && this.ship.mc._x + this.ship.mc._width <= curPlatform._x + curPlatform._width)
-						if(this.ship.vy <= this.maxLandingV && Math.abs(this.ship.vx) <= this.maxLandingV && this.ship.mc._x >= curPlatform._x && this.ship.mc._x + this.ship.mc._width <= curPlatform._x + curPlatform._width)
-							this.win();
-						else
-							this.lose();
-							
-						break;
-					}
-				}
+				curPlatform._x += this.platformDirection;				
+				
+				break;
 			}
-			
-			// Update ship txt
-			this.mc.ship_ax_txt.text = formatDecimals(this.ship.ax, 2);
-			this.mc.ship_ay_txt.text = formatDecimals(this.ship.ay, 2);
-			this.mc.ship_vx_txt.text = formatDecimals(this.ship.vx, 2);
-			this.mc.ship_vy_txt.text = formatDecimals(this.ship.vy, 2);
-			this.mc.ship_x_txt.text = formatDecimals(this.ship.x - this.ship.startX, 2);
-			this.mc.ship_y_txt.text = formatDecimals(this.ship.startY - this.ship.y, 2);
-			this.mc.ship_fuel_txt.text = formatDecimals(this.ship.fuel, 2);
-			
-			// Update ship meters
-			this.mc.fuel_meter_mc.bar_mc._width = this.ship.fuel/100 * this.mc.fuel_meter_mc.bg_mc._width;
-			
-			if(_root.center_bar_x_pos == undefined)
-				_root.center_bar_x_pos = this.mc.ax_meter_mc.bar_mc._x;
-			
-			if(this.ship.ax/this.ship.axMax < 0)
+		}		
+	}
+	
+	// Flash vy and/or vx if they're > maxLandingV and flash fuel if < 50% left	
+	private function checkForWarnings()
+	{
+		if(this.ship.vx > this.maxLandingV)
+		{
+			if(_root.vxFlashStart == undefined)
+				_root.vxFlashStart = 1;
+								
+			if(_root.vxFlashStart % 2 == 0)
 			{
-				this.mc.ax_meter_mc.bar_mc._x = this.mc.ax_meter_mc.bg_mc._width/2 - Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.ax_meter_mc.bg_mc._width/2));
-				this.mc.ax_meter_mc.bar_mc._width = Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.ax_meter_mc.bg_mc._width/2));
+				this.mc.ship_vx_txt.textColor = 0xFF0000;
 			}
 			else
 			{
-				this.mc.ax_meter_mc.bar_mc._x = _root.center_bar_x_pos;
-				this.mc.ax_meter_mc.bar_mc._width = Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.ax_meter_mc.bg_mc._width/2));				
+				this.mc.ship_vx_txt.textColor = 0xFFFFFF;				
 			}
 			
-			this.mc.ay_meter_mc.bar_mc._width = (this.ship.ay/this.ship.ayMax) * (this.mc.ay_meter_mc.bg_mc._width);			
-			
-			
-			// Update life indicator
-			this.mc.lives_mc.gotoAndStop("_"+this.lives);
-			
-			var curTimeSpan:Number = getTimer() - this.initTime;
-			
-			if(curTimeSpan % this.starTwinkleRate == 0)
-			{
-				// Twinkle stars
-				this.twinkleStars();		
-			}
-			
-			// No need to let this counter go into oblivion
-			if(curTimeSpan > 100000)
-				this.initTime = getTimer();			
+			_root.vxFlashStart += 1;
 		}
+		else
+		{
+			_root.vxFlashStart = 1;
+			this.mc.ship_vx_txt.textColor = 0xFFFFFF;	
+		}
+		if(this.ship.vy > this.maxLandingV)
+		{
+			if(_root.vyFlashStart == undefined)
+				_root.vyFlashStart = 1;
+								
+			if(_root.vyFlashStart % 2 == 0)
+			{
+				this.mc.ship_vy_txt.textColor = 0xFF0000;
+			}
+			else
+			{
+				this.mc.ship_vy_txt.textColor = 0xFFFFFF;				
+			}
+			
+			_root.vyFlashStart += 1;
+		}
+		else
+		{
+			_root.vyFlashStart = 1;
+			this.mc.ship_vy_txt.textColor = 0xFFFFFF;	
+		}
+		if(this.ship.fuel/this.ship.fuelMax < 0.5)
+		{
+			if(_root.fuelFlashStart == undefined)
+				_root.fuelFlashStart = 1;
+								
+			if(_root.fuelFlashStart % 2 == 0)
+			{
+				this.mc.ship_fuel_label.textColor = 0xFF0000;
+			}
+			else
+			{
+				this.mc.ship_fuel_label.textColor = 0xFFFFFF;				
+			}
+			
+			_root.fuelFlashStart += 1;
+		}
+		else
+		{
+			_root.fuelFlashStart = 1;
+			this.mc.ship_fuel_label.textColor = 0xFFFFFF;	
+		}		
+	}
+	
+	// Update instrument displays
+	private function updateDisplays()
+	{
+		// Update ship txt
+		this.mc.ship_ax_txt.text = formatDecimals(this.ship.ax, 2);
+		this.mc.ship_ay_txt.text = formatDecimals(this.ship.ay, 2);
+		this.mc.ship_vx_txt.text = formatDecimals(this.ship.vx, 2);
+		this.mc.ship_vy_txt.text = formatDecimals(this.ship.vy, 2);
+		this.mc.ship_x_txt.text = formatDecimals(this.ship.x - this.ship.startX, 2);
+		this.mc.ship_y_txt.text = formatDecimals(this.ship.startY - this.ship.y, 2);
+		this.mc.ship_fuel_txt.text = formatDecimals(this.ship.fuel, 2);
+
+		// Update ship meters
+		this.mc.fuel_meter_mc.bar_mc._width = this.ship.fuel/100 * this.mc.fuel_meter_mc.bg_mc._width;
+
+		if(_root.center_bar_x_pos == undefined)
+			_root.center_bar_x_pos = this.mc.ax_meter_mc.bar_mc._x;
+
+		if(this.ship.ax/this.ship.axMax < 0)
+		{
+			this.mc.ax_meter_mc.bar_mc._x = this.mc.ax_meter_mc.bg_mc._width/2 - Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.ax_meter_mc.bg_mc._width/2));
+			this.mc.ax_meter_mc.bar_mc._width = Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.ax_meter_mc.bg_mc._width/2));
+		}
+		else
+		{
+			this.mc.ax_meter_mc.bar_mc._x = _root.center_bar_x_pos;
+			this.mc.ax_meter_mc.bar_mc._width = Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.ax_meter_mc.bg_mc._width/2));				
+		}
+
+		this.mc.ay_meter_mc.bar_mc._width = (this.ship.ay/this.ship.ayMax) * (this.mc.ay_meter_mc.bg_mc._width);			
+		
+		// Update number of lives left indicator
+		this.mc.lives_mc.gotoAndStop("_"+this.lives);		
 	}
 	
 	// Show win interstitial
@@ -366,10 +403,21 @@ class Lunar
 	{
 		// Level win bonus
 		this.totalScore += this.scoreLevelBonusPt;
+		this.levelBonus = true;
 		
 		// Check for fuel bonus
 		if(this.ship.fuel/this.ship.fuelMax > this.scoreFuelBonusPct)
+		{
 			this.totalScore += this.scoreFuelBonusPt;
+			this.fuelBonus = true;
+		}
+			
+		// Check for time bonus
+		if(getTimer() - this.initTime < this.timeBonusTime)
+		{
+			this.totalScore += this.scoreTimeBonusPt;
+			this.timeBonus = true;
+		}
 			
 		if(this.gameLevel + 1 <= this.maxLevels)
 			this.gameLevel += 1;
