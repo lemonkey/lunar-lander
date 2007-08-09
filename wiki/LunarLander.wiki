@@ -17,6 +17,7 @@ Feel free to use the source as you see fit.  Just include a note pointing back t
 
 = Version History =
 
+  * 0.4: Added fuel and time bonuses and refactored Lunar class.
   * 0.3: Added warning states for meters and scoring logic.
   * 0.2: Added next level interstitial.
   * 0.1: Started versioning.
