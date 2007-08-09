@@ -85,11 +85,14 @@ class Ship
 		this.startY = this.y;
 		
 		// Set ship object states
-		//this.isVisible = true;
 		this.isRunning = false;
 		this.engineOn = false;
 		this.leftEngineOn = false;
 		this.rightEngineOn = false;
+		
+		this.toggleEngine(false);
+		this.toggleLeftEngine(false);
+		this.toggleRightEngine(false);
 		
 		// Set ship movieclip states
 		this.mc._visible = this.isVisible;

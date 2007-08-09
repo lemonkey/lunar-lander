@@ -243,14 +243,6 @@ class Lunar
 				
 				if(curPlatform.hitTest(this.ship.body_mc))
 				{
-					trace("curPlatform: "+curPlatform);
-					trace("this.ship.mc._y: "+this.ship.mc._y);
-					trace("curPlatform._y: "+curPlatform._y);
-					
-					// Don't allow side hits						
-					trace("## current vy: "+this.ship.vy);
-					
-					//if(this.ship.mc._y <= curPlatform._y + 5 && this.ship.mc._x >= curPlatform._x && this.ship.mc._x + this.ship.mc._width <= curPlatform._x + curPlatform._width)
 					if(this.ship.vy <= this.maxLandingV && Math.abs(this.ship.vx) <= this.maxLandingV && this.ship.mc._x >= curPlatform._x && this.ship.mc._x + this.ship.mc._width <= curPlatform._x + curPlatform._width)
 						this.win();
 					else
@@ -310,71 +302,80 @@ class Lunar
 	}
 	
 	// Flash vy and/or vx if they're > maxLandingV and flash fuel if < 50% left	
-	private function checkForWarnings()
+	private function checkForWarnings(reset:Boolean)
 	{
-		if(this.ship.vx > this.maxLandingV)
+		if(reset)
 		{
-			if(_root.vxFlashStart == undefined)
-				_root.vxFlashStart = 1;
-								
-			if(_root.vxFlashStart % 2 == 0)
-			{
-				this.mc.ship_vx_txt.textColor = 0xFF0000;
-			}
-			else
-			{
-				this.mc.ship_vx_txt.textColor = 0xFFFFFF;				
-			}
-			
-			_root.vxFlashStart += 1;
-		}
-		else
-		{
-			_root.vxFlashStart = 1;
 			this.mc.ship_vx_txt.textColor = 0xFFFFFF;	
+			this.mc.ship_vy_txt.textColor = 0xFFFFFF;		
+			this.mc.ship_fuel_label.textColor = 0xFFFFFF;			
 		}
-		if(this.ship.vy > this.maxLandingV)
+		else
 		{
-			if(_root.vyFlashStart == undefined)
+			if(this.ship.vx > this.maxLandingV)
+			{
+				if(_root.vxFlashStart == undefined)
+					_root.vxFlashStart = 1;
+									
+				if(_root.vxFlashStart % 2 == 0)
+				{
+					this.mc.ship_vx_txt.textColor = 0xFF0000;
+				}
+				else
+				{
+					this.mc.ship_vx_txt.textColor = 0xFFFFFF;				
+				}
+				
+				_root.vxFlashStart += 1;
+			}
+			else
+			{
+				_root.vxFlashStart = 1;
+				this.mc.ship_vx_txt.textColor = 0xFFFFFF;	
+			}
+			if(this.ship.vy > this.maxLandingV)
+			{
+				if(_root.vyFlashStart == undefined)
+					_root.vyFlashStart = 1;
+									
+				if(_root.vyFlashStart % 2 == 0)
+				{
+					this.mc.ship_vy_txt.textColor = 0xFF0000;
+				}
+				else
+				{
+					this.mc.ship_vy_txt.textColor = 0xFFFFFF;				
+				}
+				
+				_root.vyFlashStart += 1;
+			}
+			else
+			{
 				_root.vyFlashStart = 1;
-								
-			if(_root.vyFlashStart % 2 == 0)
+				this.mc.ship_vy_txt.textColor = 0xFFFFFF;	
+			}
+			if(this.ship.fuel/this.ship.fuelMax < 0.5)
 			{
-				this.mc.ship_vy_txt.textColor = 0xFF0000;
+				if(_root.fuelFlashStart == undefined)
+					_root.fuelFlashStart = 1;
+									
+				if(_root.fuelFlashStart % 2 == 0)
+				{
+					this.mc.ship_fuel_label.textColor = 0xFF0000;
+				}
+				else
+				{
+					this.mc.ship_fuel_label.textColor = 0xFFFFFF;				
+				}
+				
+				_root.fuelFlashStart += 1;
 			}
 			else
 			{
-				this.mc.ship_vy_txt.textColor = 0xFFFFFF;				
-			}
-			
-			_root.vyFlashStart += 1;
-		}
-		else
-		{
-			_root.vyFlashStart = 1;
-			this.mc.ship_vy_txt.textColor = 0xFFFFFF;	
-		}
-		if(this.ship.fuel/this.ship.fuelMax < 0.5)
-		{
-			if(_root.fuelFlashStart == undefined)
 				_root.fuelFlashStart = 1;
-								
-			if(_root.fuelFlashStart % 2 == 0)
-			{
-				this.mc.ship_fuel_label.textColor = 0xFF0000;
-			}
-			else
-			{
-				this.mc.ship_fuel_label.textColor = 0xFFFFFF;				
-			}
-			
-			_root.fuelFlashStart += 1;
-		}
-		else
-		{
-			_root.fuelFlashStart = 1;
-			this.mc.ship_fuel_label.textColor = 0xFFFFFF;	
-		}		
+				this.mc.ship_fuel_label.textColor = 0xFFFFFF;	
+			}				
+		}	
 	}
 	
 	// Update instrument displays
@@ -446,6 +447,9 @@ class Lunar
 	{
 		this.lives -= 1;
 
+		// Update number of lives left indicator
+		this.mc.lives_mc.gotoAndStop("_"+this.lives);		
+		
 		if(this.lives > 0)
         {
             if(this.ship.y <= 0)
@@ -456,12 +460,25 @@ class Lunar
 		else
 		{
 			this.gameOver = true;
-			this.mc.bg_mc.interstitial_mc.gotoAndStop("_gameOver");
+			this.mc.bg_mc.interstitial_mc.gotoAndStop("_gameOver");		
+			
+			// Reset level
 			this.gameLevel = 1;
 		}
 			
 		this.ship.shutDown(true);
 		this.stop();		
+	}
+	
+	// Called by level interstitial
+	private function clearLevel()
+	{	
+		// Reset ship and clear instruments
+		this.ship.resetShip();		
+		this.ship.setVisibility(false);
+		this.ship.fuel = 0;
+		this.checkForWarnings(true);
+		this.updateDisplays();		
 	}
 	
 	// Show level interstitial
