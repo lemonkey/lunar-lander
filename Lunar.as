@@ -58,6 +58,8 @@ class Lunar
 	var fuelBonus:Boolean = false;
 	var timeBonus:Boolean = false;
 	
+	var interstitialShown:Boolean = false; // don't allow pause during interstitials
+	
 	// Default constructor
 	function Lunar(mc:MovieClip)
 	{		
@@ -105,8 +107,9 @@ class Lunar
 		trace("## restart()");		
 				
 		this.gameStarted = true;
-			
+		
 		this.mc.bg_mc.interstitial_mc.gotoAndStop("_off");
+		this.interstitialShown = false;
 		
 		// Clear platforms
 		for(var i:Number = 0; i < this.totalPlatforms; i++)
@@ -595,14 +598,16 @@ class Lunar
 						}
 						break;
 					// pause 'p'
-					case 80:
-						this.paused = !this.paused;
-						
-						if(this.paused)
-							this.mc.bg_mc.interstitial_mc.gotoAndStop("_paused")
-						else
-							this.mc.bg_mc.interstitial_mc.gotoAndStop("_off");
+					case 80:					
+						if(!this.interstitialShown && this.gameStarted)
+						{
+							this.paused = !this.paused;
 							
+							if(this.paused)
+								this.mc.bg_mc.interstitial_mc.gotoAndStop("_paused")
+							else
+								this.mc.bg_mc.interstitial_mc.gotoAndStop("_off");
+						}
 						break;
 					// "+"
 					case 107:
@@ -625,42 +630,12 @@ class Lunar
 						break;
 
 				}
-			}
-			/*
-			else if(state == "up")
-			{
-				switch(keyCode)
-				{			
-					// up				
-					case 38:
-						if(!this.ship.isRunning)
-						{
-							//this.ship.toggleEngine(false);
-						}
-						break;
-					// down
-					case 40:
-						this.ship.toggleEngine(false);
-						break;
-					// left
-					case 37:
-						break;
-					// right
-					case 39:
-						break;	
-					default:
-						break;
-				}
-			}		
-			*/
+			}			
 		}
 	}
 	
-	
-	
-	
-	
-	// *** Utility functions ***
+	// Utility functions
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	// Generates random number between two ranges and strips off the decimal point 04/26/07
 	public static function randRangeFloor(min:Number, max:Number) {
@@ -695,4 +670,7 @@ class Lunar
 		return(cropped);
 		
 	} //Robert Penner May 2001 - source@robertpenner.com	
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
 }
