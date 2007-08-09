@@ -17,6 +17,7 @@ Feel free to use the source as you see fit.  Just include a note pointing back t
 
 = Version History =
 
+  * 0.7: Pause button bugfix and time elapsed added to win screen.
   * 0.6: Instrument reset tweaks.
   * 0.5: Time bonus paused bug fix.
   * 0.4: Added fuel and time bonuses and refactored Lunar class.
