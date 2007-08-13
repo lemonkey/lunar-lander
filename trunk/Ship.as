@@ -6,7 +6,6 @@
 * Created: 2007.08.04
 * 
 * @author abraginsky@gmail.com
-* @version 0.1
 */
 
 class Ship
@@ -42,6 +41,11 @@ class Ship
 	var leftEngineOn:Boolean = false;
 	var rightEngineOn:Boolean = false;
 	var enginesOn:Boolean = false;
+	
+	// Side engines can either stay on or act as short term boosters
+	var sideEngineBoostBehavior:String = "intermittent"; // "alwaysOn";
+	var sideEngineIntermittentTimespan:Number = 250; // ms
+	var sideEngineStartTime:Number;
 	
 	function Ship(mc:MovieClip)
 	{		
@@ -79,7 +83,7 @@ class Ship
 		this.vx = 0;
 		this.vy = 0;
 		this.x = this.parent_mc._width / 2;
-		this.y = this.yMax / 2 - 75;
+		this.y = 30;//this.yMax / 2 - 75;
 		
 		this.startX = this.x;
 		this.startY = this.y;
@@ -103,6 +107,16 @@ class Ship
 	
 	public function move()
 	{
+		// Turn off side engines if in intermittent mode and timespan has elapsed
+		if(this.sideEngineBoostBehavior == "intermittent")
+		{
+			if((getTimer() - this.sideEngineStartTime) > this.sideEngineIntermittentTimespan)
+			{
+				this.sideEngineStartTime = undefined;
+				this.ax = 0;
+			}
+		}
+		
 		// Set engine animations
 		/////////////////////////
 		if(Lunar.formatDecimals(this.ay,2) < 0.00)
@@ -190,10 +204,18 @@ class Ship
 	{
 		if(this.fuel > 0)
 		{
-			if(this.ax < this.axMax)
-				this.ax += 0.1;
-			else
+			if(this.sideEngineBoostBehavior == "alwaysOn")
+			{
+				if(this.ax < this.axMax)
+					this.ax += 0.1;
+				else
+					this.ax = this.axMax;
+			} 
+			else if(this.sideEngineBoostBehavior == "intermittent")
+			{
+				this.sideEngineStartTime = getTimer();
 				this.ax = this.axMax;
+			}
 		}
 	}
 	
@@ -201,10 +223,18 @@ class Ship
 	{
 		if(this.fuel > 0)
 		{
-			if(this.ax > -this.axMax)
-				this.ax -= 0.1;
-			else
+			if(this.sideEngineBoostBehavior == "alwaysOn")
+			{
+				if(this.ax > -this.axMax)
+					this.ax -= 0.1;
+				else
+					this.ax = -this.axMax;
+			}
+			else if(this.sideEngineBoostBehavior == "intermittent")
+			{
+				this.sideEngineStartTime = getTimer();
 				this.ax = -this.axMax;
+			}
 		}
 	}
 	
@@ -236,19 +266,18 @@ class Ship
 		}
 	}
 	
+	// Toggle main engine
 	public function toggleEngine(override:Boolean)
 	{
 		if(override != undefined)
 		{
 			if(override == true && !this.engineOn)
 			{
-				trace("## engines on");
 				this.engineOn = override;
 				this.mc.engine_mc.gotoAndPlay("_on");
 			}
 			else if(override == false && this.engineOn)
 			{
-				trace("## engines off");
 				this.engineOn = override;
 				this.mc.engine_mc.gotoAndStop("_off");
 			}
@@ -270,13 +299,11 @@ class Ship
 		{
 			if(override == true && !this.leftEngineOn)
 			{
-				trace("## left engines on");
 				this.leftEngineOn = override;
 				this.mc.left_engine_mc.gotoAndPlay("_on");
 			}
 			else if(override == false && this.leftEngineOn)
 			{
-				trace("## left engines off");
 				this.leftEngineOn = override;
 				this.mc.left_engine_mc.gotoAndStop("_off");
 			}
@@ -298,13 +325,11 @@ class Ship
 		{
 			if(override == true && !this.rightEngineOn)
 			{
-				trace("## right engines on");
 				this.rightEngineOn = override;
 				this.mc.right_engine_mc.gotoAndPlay("_on");
 			}
 			else if(override == false && this.rightEngineOn)
 			{
-				trace("## right engines off");
 				this.rightEngineOn = override;
 				this.mc.right_engine_mc.gotoAndStop("_off");
 			}
