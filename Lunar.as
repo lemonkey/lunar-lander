@@ -2,11 +2,14 @@
 * Lunar.as
 * 
 * Purpose: Main entry point for Lunar game.
-*
+* 
 * Created: 2007.08.04
 * 
 * @author abraginsky@gmail.com
-* @version 0.1
+* 
+* Credits:
+*   . Earthrise background image courtesy of http://www.astronomy.com/asy/objects/images/earthrise_500.jpg
+*   . Sound samples from the film "2001" courtsey of MGM
 */
 
 class Lunar
@@ -24,12 +27,12 @@ class Lunar
 	var starAlphaMin:Number = 25;
 	var starAlphaMax:Number = 100;
 	var starTwinkleRate:Number = 5;//50;
-	var starTwinkleTime:Number= 1;
+	var starTwinkleTime:Number = 1;
 	
 	var gravity:Number = .3;//5;
 	var maxLandingV:Number = 3.50; // If ship lands on platform with vy or vx greater than this, count as a crash
 	
-	var heartBeat:Number = 80;
+	var heartBeat:Number = 80; // game loop interval timeout
 	var initTime:Number;
 	var pauseTime:Number;
 	
@@ -48,17 +51,24 @@ class Lunar
 	var gameLevel:Number = 1; // Each time a game is won, increment gameLevel and update platforms
 	var levels:Array = [["platform1","platform2","platform3"],["platform1","platform2"],["platform1","platform2"],["platform3"]];
 
+	// Scoring
 	var scoreLevelBonusPt:Number = 100;
 	var scoreFuelBonusPt:Number = 50;
 	var scoreFuelBonusPct:Number = 0.5; // if level cleared with fuel %age greater than this amount, award fuel bonus
 	var scoreTimeBonusPt:Number = 25; // if total time to land < 10s, award time bonus
-	var timeBonusTime:Number = 5000; // ms
+	var timeBonusTime:Number = 10000;//5000; // ms
+	var levelTime:Number = 0;
+	var bestTime:Number = 0;
+	var newBestTime:Boolean = false;
 	var totalScore:Number = 0;
 	var levelBonus:Boolean = false;
 	var fuelBonus:Boolean = false;
 	var timeBonus:Boolean = false;
 	
+	var interstitialTime:Number = 3000;
 	var interstitialShown:Boolean = false; // don't allow pause during interstitials
+	
+	var debugMode:Boolean = true; // if false, level skip keys disabled
 	
 	// Default constructor
 	function Lunar(mc:MovieClip)
@@ -72,7 +82,19 @@ class Lunar
 		initStars();
 		initKeyListener();
 		
-		_root.interstitialTimerDuration = 3000;
+		_root.interstitialTimerDuration = this.interstitialTime;
+		
+		// Hide instruments
+		this.mc.instruments_mc._visible = false;
+
+		// Show preload
+		this.mc.bg_mc.interstitial_mc.gotoAndStop("_preLoad");
+		
+		// Load external sounds
+		this.mc.external_sounds_mc.loadMovie("sounds.swf");
+				
+		// Start intro animation
+		//this.mc.bg_mc.interstitial_mc.gotoAndStop("_intro");				
 	}	
 	
 	// Create ship
@@ -105,12 +127,51 @@ class Lunar
 	private function restart()
 	{
 		trace("## restart()");		
-				
-		this.gameStarted = true;
+			
+		// Stop intro hiss  if it's still playing
+		if(!this.gameStarted)
+			this.stopSnd("hiss");
+			
+		this.gameStarted = true;		
 		
 		this.mc.bg_mc.interstitial_mc.gotoAndStop("_off");
 		this.interstitialShown = false;
 		
+		this.playSnd("background");
+		
+		this.initPlatforms();
+		
+		if(this.gameOver)
+		{		
+			// Reset for a new game
+			this.totalScore = 0;
+			this.ship.fuel = 100;
+			this.lives = this.maxLives;			
+			this.gameOver = false;
+			this.mc.platforms_mc._visible = true;
+		}
+
+		// Re-init ship
+		this.ship.setVisibility(true);
+		this.ship.resetShip();
+		
+		this.levelBonus = false;
+		this.fuelBonus = false;
+		this.timeBonus = false;
+		
+		// Kill previous game loop interval
+		clearInterval(this.intervalID);
+		this.intervalID = undefined;
+		
+		// Start game loop interval
+		this.intervalID = setInterval(this, "manage", this.heartBeat);
+		
+		// Set initial time
+		this.initTime = getTimer();
+	}
+	
+	private function initPlatforms()
+	{
 		// Clear platforms
 		for(var i:Number = 0; i < this.totalPlatforms; i++)
 		{
@@ -119,7 +180,6 @@ class Lunar
 		}
 		
 		// Set platforms for current level
-		trace("cur level: "+this.gameLevel);
 		this.platforms = this.levels[this.gameLevel-1];
 		
 		// platform y = 331.3
@@ -148,33 +208,7 @@ class Lunar
 			platCount++;
 		}
 		
-		this.mc.platforms_mc._visible = true;
-
-		if(this.gameOver)
-		{
-			// Reset for a new game
-			this.totalScore = 0;
-			this.ship.fuel = 100;
-			this.lives = this.maxLives;			
-			this.gameOver = false;
-		}
-
-		this.ship.setVisibility(true);
-		this.ship.resetShip();
-		
-		this.levelBonus = false;
-		this.fuelBonus = false;
-		this.timeBonus = false;
-		
-		// Kill previous enterframe manager
-		clearInterval(this.intervalID);
-		this.intervalID = undefined;
-		
-		// Start enterframe manager
-		this.intervalID = setInterval(this, "manage", this.heartBeat);
-		
-		// Set initial time
-		this.initTime = getTimer();
+		this.mc.platforms_mc._visible = true;		
 	}
 	
 	private function stop()
@@ -182,6 +216,9 @@ class Lunar
 		// Kill previous enterframe manager
 		clearInterval(this.intervalID);
 		this.intervalID = undefined;
+		
+		// Stop any looping sounds
+		this.stopSnd();
 	}
 	
 	// Manage simulation
@@ -239,7 +276,7 @@ class Lunar
 			this.lose();
 		else
 		{
-			// Ship landed on a platform? (win)
+			// Ship landed on a platform with correct velocities? (win)
 			for(var i:Number = 0; i < this.platforms.length; i++)
 			{
 				var curPlatform:MovieClip = eval("this.mc.platforms_mc."+platforms[i]);
@@ -304,79 +341,168 @@ class Lunar
 		}		
 	}
 	
+	private function playSnd(which:String)
+	{
+		switch(which)
+		{
+			case "background":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_background_mc.gotoAndPlay("_on");
+				break;
+			case "lowFuel":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_lowFuel_mc.gotoAndPlay("_on");
+				break;
+			case "lowAltitude":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_lowAltitude_mc.gotoAndPlay("_on");
+				break;
+			case "win":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_win_mc.gotoAndPlay("_on");
+				break;
+			case "lose":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_lose_mc.gotoAndPlay("_on");
+				break;		
+			case "hiss":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_hiss_mc.gotoAndPlay("_on");
+				break;		
+		}
+	}
+	
+	private function stopSnd(which:String)
+	{
+		switch(which)
+		{
+			case "background":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_background_mc.gotoAndStop("_off");
+				break;
+			case "lowFuel":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_lowFuel_mc.gotoAndStop("_off");
+				break;
+			case "lowAltitude":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_lowAltitude_mc.gotoAndStop("_off");
+				break;
+			case "win":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_win_mc.gotoAndStop("_off");
+				break;
+			case "lose":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_lose_mc.gotoAndStop("_off");
+				break;	
+			case "hiss":
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_hiss_mc.gotoAndStop("_off");
+				break;		
+			default:
+			{
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_background_mc.gotoAndStop("_off");
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_lowFuel_mc.gotoAndStop("_off");
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_lowAltitude_mc.gotoAndStop("_off");
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_win_mc.gotoAndStop("_off");
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_lose_mc.gotoAndStop("_off");
+				this.mc.external_sounds_mc.mc.snd_container_mc.snd_hiss_mc.gotoAndStop("_off");
+			}
+		}
+	}
+	
 	// Flash vy and/or vx if they're > maxLandingV and flash fuel if < 50% left	
 	private function checkForWarnings(reset:Boolean)
 	{
 		if(reset)
 		{
-			this.mc.ship_vx_txt.textColor = 0xFFFFFF;	
-			this.mc.ship_vy_txt.textColor = 0xFFFFFF;		
-			this.mc.ship_fuel_label.textColor = 0xFFFFFF;			
+			this.mc.instruments_mc.ship_vx_txt.textColor = 0xFFFFFF;	
+			this.mc.instruments_mc.ship_vy_txt.textColor = 0xFFFFFF;		
+			this.mc.instruments_mc.ship_fuel_label.textColor = 0xFFFFFF;			
 		}
 		else
 		{
-			if(this.ship.vx > this.maxLandingV)
-			{
-				if(_root.vxFlashStart == undefined)
-					_root.vxFlashStart = 1;
-									
-				if(_root.vxFlashStart % 2 == 0)
-				{
-					this.mc.ship_vx_txt.textColor = 0xFF0000;
-				}
-				else
-				{
-					this.mc.ship_vx_txt.textColor = 0xFFFFFF;				
-				}
-				
-				_root.vxFlashStart += 1;
-			}
-			else
-			{
-				_root.vxFlashStart = 1;
-				this.mc.ship_vx_txt.textColor = 0xFFFFFF;	
-			}
-			if(this.ship.vy > this.maxLandingV)
-			{
-				if(_root.vyFlashStart == undefined)
-					_root.vyFlashStart = 1;
-									
-				if(_root.vyFlashStart % 2 == 0)
-				{
-					this.mc.ship_vy_txt.textColor = 0xFF0000;
-				}
-				else
-				{
-					this.mc.ship_vy_txt.textColor = 0xFFFFFF;				
-				}
-				
-				_root.vyFlashStart += 1;
-			}
-			else
-			{
-				_root.vyFlashStart = 1;
-				this.mc.ship_vy_txt.textColor = 0xFFFFFF;	
-			}
+			var lowFuel:Boolean = false;
+			
 			if(this.ship.fuel/this.ship.fuelMax < 0.5)
 			{
+				lowFuel = true;
+				
+				this.playSnd("lowFuel");
+				//this.stopSnd("background");
+				
 				if(_root.fuelFlashStart == undefined)
 					_root.fuelFlashStart = 1;
 									
 				if(_root.fuelFlashStart % 2 == 0)
 				{
-					this.mc.ship_fuel_label.textColor = 0xFF0000;
+					this.mc.instruments_mc.ship_fuel_label.textColor = 0xFF0000;
 				}
 				else
 				{
-					this.mc.ship_fuel_label.textColor = 0xFFFFFF;				
+					this.mc.instruments_mc.ship_fuel_label.textColor = 0xFFFFFF;				
 				}
 				
 				_root.fuelFlashStart += 1;
 			}
 			else
 			{
+				this.stopSnd("lowFuel");
+				//this.playSnd("background");
+				
 				_root.fuelFlashStart = 1;
-				this.mc.ship_fuel_label.textColor = 0xFFFFFF;	
+				this.mc.instruments_mc.ship_fuel_label.textColor = 0xFFFFFF;	
+			}
+			
+			if(this.ship.vx > this.maxLandingV)
+			{
+				if(!lowFuel)
+				{
+					this.playSnd("lowAltitude");
+					//this.stopSnd("background");
+				}
+				
+				if(_root.vxFlashStart == undefined)
+					_root.vxFlashStart = 1;
+									
+				if(_root.vxFlashStart % 2 == 0)
+				{
+					this.mc.instruments_mc.ship_vx_txt.textColor = 0xFF0000;
+				}
+				else
+				{
+					this.mc.instruments_mc.ship_vx_txt.textColor = 0xFFFFFF;				
+				}
+				
+				_root.vxFlashStart += 1;
+			}
+			else
+			{
+				this.stopSnd("lowAltitude");
+				//this.playSnd("background");
+				
+				_root.vxFlashStart = 1;
+				this.mc.instruments_mc.ship_vx_txt.textColor = 0xFFFFFF;	
+			}
+			
+			if(this.ship.vy > this.maxLandingV)
+			{
+				if(!lowFuel)
+				{
+					this.playSnd("lowAltitude");
+					//this.stopSnd("background");					
+				}
+				
+				if(_root.vyFlashStart == undefined)
+					_root.vyFlashStart = 1;
+									
+				if(_root.vyFlashStart % 2 == 0)
+				{
+					this.mc.instruments_mc.ship_vy_txt.textColor = 0xFF0000;
+				}
+				else
+				{
+					this.mc.instruments_mc.ship_vy_txt.textColor = 0xFFFFFF;				
+				}
+				
+				_root.vyFlashStart += 1;
+			}
+			else
+			{
+				this.stopSnd("lowAltitude");
+				//this.playSnd("background");
+				
+				_root.vyFlashStart = 1;
+				this.mc.instruments_mc.ship_vy_txt.textColor = 0xFFFFFF;	
 			}				
 		}	
 	}
@@ -384,33 +510,33 @@ class Lunar
 	// Update instrument displays
 	private function updateDisplays()
 	{
-		// Update ship txt
-		this.mc.ship_ax_txt.text = formatDecimals(this.ship.ax, 2);
-		this.mc.ship_ay_txt.text = formatDecimals(this.ship.ay, 2);
-		this.mc.ship_vx_txt.text = formatDecimals(this.ship.vx, 2);
-		this.mc.ship_vy_txt.text = formatDecimals(this.ship.vy, 2);
-		this.mc.ship_x_txt.text = formatDecimals(this.ship.x - this.ship.startX, 2);
-		this.mc.ship_y_txt.text = formatDecimals(this.ship.startY - this.ship.y, 2);
-		this.mc.ship_fuel_txt.text = formatDecimals(this.ship.fuel, 2);
+		// Update text
+		this.mc.instruments_mc.ship_ax_txt.text = formatDecimals(this.ship.ax, 2);
+		this.mc.instruments_mc.ship_ay_txt.text = formatDecimals(this.ship.ay, 2);
+		this.mc.instruments_mc.ship_vx_txt.text = formatDecimals(this.ship.vx, 2);
+		this.mc.instruments_mc.ship_vy_txt.text = formatDecimals(this.ship.vy, 2);
+		this.mc.instruments_mc.ship_x_txt.text = formatDecimals(this.ship.x - this.ship.startX, 2);
+		this.mc.instruments_mc.ship_y_txt.text = formatDecimals(this.ship.startY - this.ship.y, 2);
+		this.mc.instruments_mc.ship_fuel_txt.text = formatDecimals(this.ship.fuel, 2);
 
-		// Update ship meters
-		this.mc.fuel_meter_mc.bar_mc._width = this.ship.fuel/100 * this.mc.fuel_meter_mc.bg_mc._width;
+		// Update meters
+		this.mc.instruments_mc.fuel_meter_mc.bar_mc._width = this.ship.fuel/100 * this.mc.instruments_mc.fuel_meter_mc.bg_mc._width;
 
 		if(_root.center_bar_x_pos == undefined)
-			_root.center_bar_x_pos = this.mc.ax_meter_mc.bar_mc._x;
+			_root.center_bar_x_pos = this.mc.instruments_mc.ax_meter_mc.bar_mc._x;
 
 		if(this.ship.ax/this.ship.axMax < 0)
 		{
-			this.mc.ax_meter_mc.bar_mc._x = this.mc.ax_meter_mc.bg_mc._width/2 - Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.ax_meter_mc.bg_mc._width/2));
-			this.mc.ax_meter_mc.bar_mc._width = Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.ax_meter_mc.bg_mc._width/2));
+			this.mc.instruments_mc.ax_meter_mc.bar_mc._x = this.mc.instruments_mc.ax_meter_mc.bg_mc._width/2 - Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.instruments_mc.ax_meter_mc.bg_mc._width/2));
+			this.mc.instruments_mc.ax_meter_mc.bar_mc._width = Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.instruments_mc.ax_meter_mc.bg_mc._width/2));
 		}
 		else
 		{
-			this.mc.ax_meter_mc.bar_mc._x = _root.center_bar_x_pos;
-			this.mc.ax_meter_mc.bar_mc._width = Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.ax_meter_mc.bg_mc._width/2));				
+			this.mc.instruments_mc.ax_meter_mc.bar_mc._x = _root.center_bar_x_pos;
+			this.mc.instruments_mc.ax_meter_mc.bar_mc._width = Math.abs((this.ship.ax/this.ship.axMax) * (this.mc.instruments_mc.ax_meter_mc.bg_mc._width/2));				
 		}
 
-		this.mc.ay_meter_mc.bar_mc._width = (this.ship.ay/this.ship.ayMax) * (this.mc.ay_meter_mc.bg_mc._width);			
+		this.mc.instruments_mc.ay_meter_mc.bar_mc._width = (this.ship.ay/this.ship.ayMax) * (this.mc.instruments_mc.ay_meter_mc.bg_mc._width);			
 		
 		// Update number of lives left indicator
 		this.mc.lives_mc.gotoAndStop("_"+this.lives);		
@@ -419,6 +545,10 @@ class Lunar
 	// Show win interstitial
 	private function win()
 	{
+		// Shutdown ship
+		this.ship.shutDown(false);
+		this.stop();		
+		
 		// Level win bonus
 		this.totalScore += this.scoreLevelBonusPt;
 		this.levelBonus = true;
@@ -431,23 +561,44 @@ class Lunar
 		}
 			
 		// Check for time bonus
-		if(getTimer() - this.initTime < this.timeBonusTime)
+		this.levelTime = getTimer() - this.initTime;
+		
+		if(this.levelTime < this.timeBonusTime)
 		{
 			this.totalScore += this.scoreTimeBonusPt;
 			this.timeBonus = true;
 		}
-			
+		
+		// Update best time
+		if(this.bestTime == 0)
+		{
+			this.bestTime = this.levelTime;
+		}
+		else if(this.levelTime < this.bestTime)
+		{
+			trace("## New best time! "+levelTime);
+			this.bestTime = this.levelTime;
+			this.newBestTime = true;
+		}
+		else
+			this.newBestTime = false;
+		
+		// Increment level
 		if(this.gameLevel + 1 <= this.maxLevels)
 			this.gameLevel += 1;
 			
-		this.mc.bg_mc.interstitial_mc.gotoAndStop("_win");
-		this.ship.shutDown(false);
-		this.stop();		
+		this.mc.bg_mc.interstitial_mc.gotoAndStop("_win");		
+		this.stopSnd("background");
+		this.playSnd("win");		
 	}
 	
 	// Show lose interstitial
 	private function lose()
 	{
+		// Shutdown ship
+		this.ship.shutDown(true);
+		this.stop();		
+		
 		this.lives -= 1;
 
 		// Update number of lives left indicator
@@ -456,21 +607,33 @@ class Lunar
 		if(this.lives > 0)
         {
             if(this.ship.y <= 0)
+			{
                 this.mc.bg_mc.interstitial_mc.gotoAndStop("_signalLost");
+				this.stopSnd("background");
+			}
             else
+			{
                 this.mc.bg_mc.interstitial_mc.gotoAndStop("_lose");
+				
+				this.stopSnd("background");
+				this.playSnd("lose");
+			}
         }
 		else
 		{
 			this.gameOver = true;
-			this.mc.bg_mc.interstitial_mc.gotoAndStop("_gameOver");		
+			
+			// Hide platforms
+			this.mc.platforms_mc._visible = false;
+
+			this.mc.bg_mc.interstitial_mc.gotoAndStop("_gameOver");	
+			
+			this.stopSnd("background");
+			this.playSnd("lose");
 			
 			// Reset level
 			this.gameLevel = 1;
-		}
-			
-		this.ship.shutDown(true);
-		this.stop();		
+		}			
 	}
 	
 	// Called by level interstitial
@@ -552,48 +715,31 @@ class Lunar
 				{
 					// up
 					case 38:
-						//this.ship.mc._y--;
 						if(!this.ship.isRunning)
-						{
-							//this.ship.toggleEngine(true);
 							this.ship.thrustUp();
-						}
 						break;
 					// down
 					case 40:
-						//this.ship.mc._y++;
 						if(!this.ship.isRunning)
-						{
 							this.ship.thrustDown();
-						}
 						break;					
 					// left
 					case 37:
 						if(!this.ship.isRunning)
-						{
-							// Kill engine (bugfix)
-							//this.ship.toggleEngine(false);
-							
-							// Thrust left
 							this.ship.thrustLeft();						
-						}
 						break;
 					// right				
 					case 39:
 						if(!this.ship.isRunning)	
-						{
-							// Kill engine (bugfix)
-							//this.ship.toggleEngine(false);
-							
-							// Thrust right
 							this.ship.thrustRight();
-						}
 						break;			
 					// restart ('r')
 					case 82:				
-						if(!this.gameStarted || this.gameOver)
+						if(_root.startup == true && (!this.gameStarted || this.gameOver))
 						{
-							//this.restart();
+							this.mc.instruments_mc._visible = true;
+							
+							// Show current level interstitial
 							this.level();
 						}
 						break;
@@ -609,26 +755,31 @@ class Lunar
 								this.mc.bg_mc.interstitial_mc.gotoAndStop("_off");
 						}
 						break;
-					// "+"
+					// increment level (debug) '+'
 					case 107:
-						this.mc.bg_mc.interstitial_mc.gotoAndStop("_off");
-						if(this.gameLevel + 1 <= this.maxLevels)
-							this.gameLevel += 1;
-						else
-							this.gameLevel = 1;
-							
-						this.restart();
-						break;
-					// "-"
-					case 109:
-						if(this.gameLevel > 0)
+						if(this.debugMode)
 						{
 							this.mc.bg_mc.interstitial_mc.gotoAndStop("_off");
-							this.gameLevel -= 1;
+							if(this.gameLevel + 1 <= this.maxLevels)
+								this.gameLevel += 1;
+							else
+								this.gameLevel = 1;
+								
 							this.restart();
 						}
 						break;
-
+					// decrement level (debug) '-'
+					case 109:
+						if(this.debugMode)
+						{
+							if(this.gameLevel > 0)
+							{
+								this.mc.bg_mc.interstitial_mc.gotoAndStop("_off");
+								this.gameLevel -= 1;
+								this.restart();
+							}
+						}
+						break;
 				}
 			}			
 		}
