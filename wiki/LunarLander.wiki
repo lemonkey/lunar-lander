@@ -9,7 +9,7 @@ I decided to whip up this homage to the arcade classic "Lunar Lander" in about a
 
 Flash 8 was used along with ActionScript 2.0.
 
-Earthrise background image courtesy of [ astronomy.com | http://www.astronomy.com/asy/objects/images/earthrise_500.jpg]
+Earthrise background image courtesy of [http://www.astronomy.com/asy/objects/images/earthrise_500.jpg astronomy.com]
 
 
 = Source Usage =
