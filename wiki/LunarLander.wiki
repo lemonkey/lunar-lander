@@ -9,7 +9,8 @@ I decided to whip up this homage to the arcade classic "Lunar Lander" in about a
 
 Flash 8 was used along with ActionScript 2.0.
 
-Sound and scoring to be added soon.
+Earthrise background image courtesy of http://www.astronomy.com/asy/objects/images/earthrise_500.jpg
+
 
 = Source Usage =
 
@@ -17,6 +18,7 @@ Feel free to use the source as you see fit.  Just include a note pointing back t
 
 = Version History =
 
+  * 0.8: Addition of sounds, scoring, graphics, etc.
   * 0.7: Pause button bugfix and time elapsed added to win screen.
   * 0.6: Instrument reset tweaks.
   * 0.5: Time bonus paused bug fix.
